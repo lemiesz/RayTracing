@@ -140,6 +140,8 @@ impl Vec3 {
 pub fn unit_vector(v: Vec3) -> Vec3 {
   return v / v.length(); 
 }
+pub use Vec3 as Color;
+pub use Vec3 as Point3;
 
 // This macro helps us implement math operators on Vector3
 // in such a way that it handles binary operators on any
@@ -246,6 +248,12 @@ macro_rules! impl_binary_operations {
       }
     }
   };
+}
+pub fn color(r: f32, g: f32, b: f32) -> Color {
+  return Color::new(r, g, b);
+}
+pub fn point3(x: f32, y: f32, z: f32) -> Point3 {
+  return Point3::new(x, y, z);
 }
 
 // It also implements unary operators like - a where a is of

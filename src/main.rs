@@ -1,18 +1,18 @@
+mod hit;
 mod ray;
 mod vec3;
+use hit::{HitRecord, Hittable, HittableList, Sphere};
+
 use crate::ray::*; // <- this is new
 use crate::vec3::vec3::*; // <- this is new
-use std::{borrow::Borrow, fs::File};
 use std::io::prelude::*;
+use std::{borrow::Borrow, fs::File, rc::Rc};
 
-use Vec3 as Color;
-use Vec3 as Point3;
+const INFINITY: f32 = f32::MAX;
+const pi: f32 = 3.1415926535897932385;
 
-fn color(r: f32, g: f32, b: f32) -> Color {
-    return Color::new(r, g, b);
-}
-fn point3(x: f32, y: f32, z: f32) -> Point3 {
-    return Point3::new(x, y, z);
+fn degrees_to_radians(degrees: f32) -> f32 {
+    return degrees * pi / 180.0;
 }
 
 fn write_color(mut file: &File, s: Vec3) {
@@ -25,8 +25,8 @@ fn write_color(mut file: &File, s: Vec3) {
         )
         .as_bytes(),
     ) {
-        Err(e) => println!("Error writing color"),
-        _ => ()
+        Err(_) => println!("Error writing color"),
+        _ => (),
     };
 }
 
@@ -39,13 +39,13 @@ fn write_color_old(s: Vec3) {
     );
 }
 
-fn ray_color(r: &Ray) -> Color {
-    if hit_sphere(point3(0.0, 0.0, -1.0), 0.5, r) {
-        return color(1.0, 0.0, 0.0);
+fn ray_color(r: &Ray, world: &dyn Hittable) -> Color {
+    let mut rec: HitRecord = HitRecord::DEFAULT;
+    if world.hit(r, 0.0, INFINITY, &mut rec) {
+        return 0.5 * (rec.normal * color(1.0, 1.0, 1.0));
     }
     let u_direction: Vec3 = unit_vector(r.dir);
-    let t: f32 = 0.5 * (u_direction.y) + 1.0;
-    let c = color(1.0, 1.0, 1.0);
+    let t = 0.5 * (u_direction.y + 1.0);
     return (1.0 - t) * color(1.0, 1.0, 1.0) + t * color(0.5, 0.7, 1.0);
 }
 
@@ -74,6 +74,11 @@ fn first_ray_trace() -> std::io::Result<()> {
     let image_width = 400;
     let image_height = (image_width as f32 / aspect_ratio) as i32;
 
+    // World
+    let mut world: HittableList = HittableList::new();
+    world.add(Rc::new(Sphere::new(point3(0.0, 0.0, -1.0), 0.5)));
+    world.add(Rc::new(Sphere::new(point3(0.0, -100.0, -1.0), 100.0)));
+
     // camera
     let viewport_height: f32 = 2.0;
     let viewport_width: f32 = aspect_ratio * viewport_height;
@@ -86,10 +91,10 @@ fn first_ray_trace() -> std::io::Result<()> {
         origin - horziontal / 2.0 - vertical / 2.0 - Vec3::new(0.0, 0.0, focal_length);
 
     // render
-    file.write_all(b"P3\n");
-    file.write_all(format!("{} {}\n", image_width, image_height).as_bytes());
-    file.write_all(b"255\n");
-  
+    file.write_all(b"P3\n")?;
+    file.write_all(format!("{} {}\n", image_width, image_height).as_bytes())?;
+    file.write_all(b"255\n")?;
+
     for j in (0..image_height).rev() {
         for i in 0..image_width {
             let u = i as f32 / (image_width as f32 - 1.0);
@@ -98,7 +103,7 @@ fn first_ray_trace() -> std::io::Result<()> {
                 &origin,
                 &(lower_left_corner + u * horziontal + v * vertical - origin),
             );
-            let pixel_color = ray_color(&r);
+            let pixel_color = ray_color(&r, &world);
             write_color(&file, pixel_color);
         }
     }
@@ -106,19 +111,23 @@ fn first_ray_trace() -> std::io::Result<()> {
 }
 
 // Taken from raysphere intersection https://raytracing.github.io/books/RayTracingInOneWeekend.html#addingasphere/ray-sphereintersection
-fn hit_sphere(center: Point3, radius: f32, ray: &Ray) -> bool {
+fn hit_sphere(center: Point3, radius: f32, ray: &Ray) -> f32 {
     let oc = ray.orig - center;
-    let a = Vec3::dot(&ray.dir, &ray.dir);
-    let b = 2.0 * Vec3::dot(&oc, &ray.dir);
-    let c = Vec3::dot(&oc, &oc) - radius * radius;
-    let discriminant = b * b - 4.0*a*c;
-    return discriminant > 0.0;
+    let a = &ray.dir.length_squared();
+    let half_b = Vec3::dot(&oc, &ray.dir);
+    let c = &oc.length_squared() - radius * radius;
+    let discriminant = half_b * half_b - a * c;
+    if discriminant < 0.0 {
+        return -1.0;
+    } else {
+        return (-half_b - discriminant.sqrt()) / a;
+    }
 }
 
 fn main() -> std::io::Result<()> {
     // create_gradient();
     match first_ray_trace() {
-        Err(e) => println!("Error writing color"),
+        Err(_) => println!("Error writing color"),
         Ok(_) => {}
     };
     Ok(())
