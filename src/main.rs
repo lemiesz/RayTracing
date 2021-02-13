@@ -40,9 +40,11 @@ fn write_color_old(s: Vec3) {
 }
 
 fn ray_color(r: &Ray, world: &dyn Hittable) -> Color {
-    let mut rec: HitRecord = HitRecord::DEFAULT;
-    if world.hit(r, 0.0, INFINITY, &mut rec) {
-        return 0.5 * (rec.normal * color(1.0, 1.0, 1.0));
+    match world.hit(r, 0.0, INFINITY) {
+        Some(rec) => {
+            return 1.5 * (rec.normal * color(1.0, 1.0, 1.0));
+        }
+        None => {}
     }
     let u_direction: Vec3 = unit_vector(r.dir);
     let t = 0.5 * (u_direction.y + 1.0);
@@ -71,12 +73,16 @@ fn first_ray_trace() -> std::io::Result<()> {
     let mut file = File::create::<_>("image.ppm")?;
     // image
     let aspect_ratio: f32 = 16.0 / 9.0;
-    let image_width = 400;
+    let image_width = 1000;
     let image_height = (image_width as f32 / aspect_ratio) as i32;
 
     // World
     let mut world: HittableList = HittableList::new();
-    world.add(Rc::new(Sphere::new(point3(0.0, 0.0, -1.0), 0.5)));
+    // world.add(Rc::new(Sphere::new(point3(0.0, 0.0, -1.0), 0.5)));
+    world.add(Rc::new(Sphere::new(point3(-0.5, 0.0, -1.0), 0.5)));
+    world.add(Rc::new(Sphere::new(point3(0.5, 0.0, -1.0), 0.5)));
+    world.add(Rc::new(Sphere::new(point3(0.0, 1.0, -1.0), 0.5)));
+    world.add(Rc::new(Sphere::new(point3(0.0, -1.0, -1.0), 0.5)));
     world.add(Rc::new(Sphere::new(point3(0.0, -100.0, -1.0), 100.0)));
 
     // camera

@@ -25,9 +25,8 @@ impl HitRecord {
         };
     }
 }
-
 pub trait Hittable {
-    fn hit(&self, r: &Ray, t_min: f32, t_max: f32, rec: &mut HitRecord) -> bool;
+    fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
 }
 pub struct Sphere {
     center: Point3,
@@ -43,7 +42,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, r: &Ray, t_min: f32, t_max: f32, rec: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         let oc = r.orig - self.center;
         let a = r.dir.length_squared();
         let half_b = Vec3::dot(&oc, &r.dir);
@@ -51,7 +50,7 @@ impl Hittable for Sphere {
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return false;
+            return Option::None;
         }
 
         let sqrtd = discriminant.sqrt();
@@ -62,16 +61,20 @@ impl Hittable for Sphere {
         if root < t_min || t_max > root {
             root = (-half_b + sqrtd) / a;
             if root < t_min || t_max < root {
-                return false;
+                return Option::None;
             }
         }
 
-        rec.t = root;
-        rec.p = r.at(rec.t);
-        let outward_normal = (rec.p - self.center) / self.radius;
-        rec.set_face_normal(r, &outward_normal);
+        let outward_normal = (r.at(root) - self.center) / self.radius;
         // find nearest root in accetable range
-        return true;
+        let mut rec = HitRecord {
+            t: root,
+            p: r.at(root),
+            front_face: false,
+            normal: Vec3::ONE,
+        };
+        rec.set_face_normal(r, &outward_normal);
+        Option::Some(rec)
     }
 }
 
@@ -91,17 +94,22 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, t_min: f32, t_max: f32, rec: &mut HitRecord) -> bool {
+    fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         // let temp_rec;
         let mut hit_anything: bool = false;
         let mut closest_so_far = t_max;
+        let mut last_hit: Option<HitRecord> = None;
 
         for object in &self.objects {
-            if object.hit(r, t_min, closest_so_far, rec) {
-                hit_anything = true;
-                closest_so_far = rec.t;
+            match object.hit(r, t_min, closest_so_far) {
+                None => {}
+                Some(rec) => {
+                    closest_so_far = rec.t;
+                    hit_anything = true;
+                    last_hit = Option::Some(rec);
+                }
             }
         }
-        return hit_anything;
+        last_hit
     }
 }
