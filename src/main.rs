@@ -42,7 +42,7 @@ fn write_color_old(s: Vec3) {
 }
 
 fn ray_color(r: &Ray, world: &dyn Hittable) -> Color {
-    match world.hit(r, 0.0, INFINITY) {
+    match world.hit(r, 0.0001, INFINITY) {
         Some(rec) => {
             return 1.5 * (rec.normal * color(1.0, 1.0, 1.0));
         }
@@ -85,7 +85,7 @@ fn first_ray_trace() -> std::io::Result<()> {
     world.add(Rc::new(Sphere::new(point3(0.5, 0.0, -1.0), 0.5)));
     world.add(Rc::new(Sphere::new(point3(0.0, 1.0, -1.0), 0.5)));
     world.add(Rc::new(Sphere::new(point3(0.0, -1.0, -1.0), 0.5)));
-    world.add(Rc::new(Sphere::new(point3(0.0, -100.0, -1.0), 100.0)));
+    // world.add(Rc::new(Sphere::new(point3(0.0, -100.0, -1.0), 100.0)));
 
     // camera
     let viewport_height: f32 = 2.0;
