@@ -8,20 +8,22 @@ use crate::vec3::vec3::*; // <- this is new
 use std::io::prelude::*;
 use std::{borrow::Borrow, fs::File, rc::Rc};
 
-const INFINITY: f32 = f32::MAX;
-const pi: f32 = 3.1415926535897932385;
+use image::{io::Reader as ImageReader, ImageBuffer, Rgb};
+
+const INFINITY: f32 = f32::INFINITY;
+const PI: f32 = 3.1415926535897932385;
 
 fn degrees_to_radians(degrees: f32) -> f32 {
-    return degrees * pi / 180.0;
+    return degrees * PI / 180.0;
 }
 
 fn write_color(mut file: &File, s: Vec3) {
     match file.write_all(
         format!(
             "{0} {1} {2}\n",
-            (255.999 * s.x) as i32,
-            (255.999 * s.y) as i32,
-            (255.999 * s.z) as i32
+            (255.0 * s.x) as i32,
+            (255.0 * s.y) as i32,
+            (255.0 * s.z) as i32
         )
         .as_bytes(),
     ) {
@@ -101,6 +103,23 @@ fn first_ray_trace() -> std::io::Result<()> {
     file.write_all(format!("{} {}\n", image_width, image_height).as_bytes())?;
     file.write_all(b"255\n")?;
 
+    let mut imgbuff = ImageBuffer::new(image_width, image_height as u32);
+
+    for (x, y, pixel) in imgbuff.enumerate_pixels_mut() {
+        let u = x as f32 / (image_width as f32 - 1.0);
+        let v = y as f32 / (image_height as f32 - 1.0);
+        let r: Ray = Ray::new(
+            &origin,
+            &(lower_left_corner + u * horziontal + v * vertical - origin),
+        );
+        let pixel_color = ray_color(&r, &world);
+        *pixel = image::Rgb([
+            (255 as f32 * pixel_color.x) as u8,
+            (255 as f32 * pixel_color.y) as u8,
+            (255 as f32 * pixel_color.z) as u8,
+        ]);
+    }
+
     for j in (0..image_height).rev() {
         for i in 0..image_width {
             let u = i as f32 / (image_width as f32 - 1.0);
@@ -113,6 +132,7 @@ fn first_ray_trace() -> std::io::Result<()> {
             write_color(&file, pixel_color);
         }
     }
+    imgbuff.save("image.png").unwrap();
     Ok(())
 }
 
